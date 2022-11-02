@@ -1,0 +1,18 @@
+MACHINES = {
+  # VM name "kernel update"
+  :"Centos-7-7" => {
+              # VM box
+              :box_name => "centos-7-7",
+              # VM CPU count
+              :cpus => 1,
+              # VM RAM size (Mb)
+              :memory => 512,
+              # networks
+              :net => [],
+              # forwarded ports
+              :forwarded_port => []
+            }
+}
+Vagrant.configure("2") do |config|
+  config.vm.box = "centos-7-7"
+end
