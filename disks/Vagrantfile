@@ -1,0 +1,71 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "centos/7"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", ip: "192.168.30.200"
+
+  parityDisk = './parityDisk.vdi'
+  dataDisk1 = './dataDisk1.vdi'
+  dataDisk2 = './dataDisk2.vdi'
+  dataDisk3 = './dataDisk3.vdi'
+  dataDisk4 = './dataDisk4.vdi'
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+
+    # Building disk files if they don't exist
+    if not File.exists?(parityDisk)
+      vb.customize ['createhd', '--filename', parityDisk, '--variant', 'Fixed', '--size', 1024]
+    end
+    if not File.exists?(dataDisk1)
+      vb.customize ['createhd', '--filename', dataDisk1, '--variant', 'Fixed', '--size', 1024]
+    end
+    if not File.exists?(dataDisk2)
+      vb.customize ['createhd', '--filename', dataDisk2, '--variant', 'Fixed', '--size', 1024]
+    end
+    if not File.exists?(dataDisk3)
+      vb.customize ['createhd', '--filename', dataDisk3, '--variant', 'Fixed', '--size', 1024]
+    end
+    if not File.exists?(dataDisk4)
+      vb.customize ['createhd', '--filename', dataDisk4, '--variant', 'Fixed', '--size', 1024]
+
+      # Adding a SATA controller that allows 6 hard drives
+      vb.customize ['storagectl', :id, '--name', 'SATA Controller', '--add', 'sata', '--portcount', 6]
+      # Attaching the disks using the SATA controller
+      vb.customize ['storageattach', :id,  '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', parityDisk]
+      vb.customize ['storageattach', :id,  '--storagectl', 'SATA Controller', '--port', 2, '--device', 0, '--type', 'hdd', '--medium', dataDisk1]
+      vb.customize ['storageattach', :id,  '--storagectl', 'SATA Controller', '--port', 3, '--device', 0, '--type', 'hdd', '--medium', dataDisk2]
+      vb.customize ['storageattach', :id,  '--storagectl', 'SATA Controller', '--port', 4, '--device', 0, '--type', 'hdd', '--medium', dataDisk3]
+      vb.customize ['storageattach', :id,  '--storagectl', 'SATA Controller', '--port', 5, '--device', 0, '--type', 'hdd', '--medium', dataDisk4]
+    end
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+  mkdir -p ~root/.ssh
+              cp ~vagrant/.ssh/auth* ~root/.ssh
+          yum install -y mdadm
+          mdadm --zero-superblock --force /dev/sd{b,c,d,e,f}
+          mdadm --create --verbose --force /dev/md0 -l 5 -n 5 /dev/sd{b,c,d,e,f}
+          mkdir /etc/mdadm/
+          echo "DEVICE partitions" > /etc/mdadm/mdadm.conf
+          mdadm --detail --scan --verbose | awk '/ARRAY/ {print}' >> /etc/mdadm/mdadm.conf
+          parted -s /dev/md0 mklabel gpt
+          parted /dev/md0 mkpart primary ext4 0% 20%
+          parted /dev/md0 mkpart primary ext4 20% 40%
+          parted /dev/md0 mkpart primary ext4 40% 60%
+          parted /dev/md0 mkpart primary ext4 60% 80%
+          parted /dev/md0 mkpart primary ext4 80% 100%
+          for i in $(seq 1 5); do sudo mkfs.ext4 /dev/md0p$i; done
+          mkdir -p /raid/part{1,2,3,4,5}
+          for i in $(seq 1 5); do mount /dev/md0p$i /raid/part$i; done
+          echo "#NEW DEVICE" >> /etc/fstab
+          for i in $(seq 1 5); do echo `sudo blkid /dev/md0p$i | awk '{print $2}'` /u0$i ext4 defaults 0 0 >> /etc/fstab; done
+          sed -i '65s/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+          systemctl restart sshd
+  SHELL
+
+end
