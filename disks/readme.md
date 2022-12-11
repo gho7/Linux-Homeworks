@@ -1,77 +1,82 @@
 Домашнее задание
 
-Работа с mdadm
+Задачи:  
 
+**-    добавить в Vagrantfile еще дисков;**  
+**-    сломать/починить raid;**  
+**-    собрать R0/R5/R10 на выбор;**  
+**-    прописать собранный рейд в конф, чтобы рейд собирался при загрузке;**  
+**-    создать GPT раздел и 5 партиций.**  
 
--    добавить в Vagrantfile еще дисков;
--    сломать/починить raid;
--    собрать R0/R5/R10 на выбор;
--    прописать собранный рейд в конф, чтобы рейд собирался при загрузке;
--    создать GPT раздел и 5 партиций.
--    В качестве проверки принимаются - измененный Vagrantfile, скрипт для создания рейда, конф для автосборки рейда при загрузке
-
-Добавляем в Vagrantfile дополнтельные диски:
+Добавляем в Vagrantfile дополнтельные диски:  
 Vagrantfile находится в папке /disks, для ручной сборки RAID комментируем раздел SHELL, в котором описано создание  и монтирование разделов
 
-# Поднимаем виртуальную машину и подключаемся к ней и вызываем режим суперпользователя
-$vagrant up
-$vagrant ssh
-$sudo -i
+Поднимаем виртуальную машину и подключаемся к ней и вызываем режим суперпользователя
 
-# проверяем наличие добавленных дисков в системе
-~lsscsi
+      $vagrant up  
+      $vagrant ssh  
+      $sudo -i  
 
-[0:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sda 
-[3:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdb 
-[4:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdc 
-[5:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdd 
-[6:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sde 
-[7:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdf 
+проверяем наличие добавленных дисков в системе  
 
-# устанавливаем mdadm
-~yum install -y mdadm
+    [root@localhost ~]# lsscsi  
 
-# обнуляем суперблоки
-~mdadm --zero-superblock --force /dev/sd{b,c,d,e,f}
-mdadm: Unrecognised md component device - /dev/sdb
-mdadm: Unrecognised md component device - /dev/sdc
-mdadm: Unrecognised md component device - /dev/sdd
-mdadm: Unrecognised md component device - /dev/sde
-mdadm: Unrecognised md component device - /dev/sdf
-#! сообщение ошибкой не является, просто уведомление, что диски ранее не использовались для RAID
+      [0:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sda 
+      [3:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdb 
+      [4:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdc 
+      [5:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdd 
+      [6:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sde 
+      [7:0:0:0]    disk    ATA      VBOX HARDDISK    1.0   /dev/sdf 
 
-# удаляем метаданные с дисков
-~wipefs --all --force /dev/sd{b,c,d,e,f}
+устанавливаем mdadm  
 
-# создаём RAID5
-~mdadm --create --verbose /dev/md0 -l 5 -n 5 /dev/sd{b,c,d,e,f}
-mdadm: layout defaults to left-symmetric
-mdadm: layout defaults to left-symmetric
-mdadm: chunk size defaults to 512K
-mdadm: size set to 1046528K
-mdadm: Defaulting to version 1.2 metadata
-mdadm: array /dev/md0 started.
+    [root@localhost ~]#yum install -y mdadm
 
-# проверяем состояние RAID
-~cat /proc/mdstat
+обнуляем суперблоки  
+
+    [root@localhost ~]#mdadm --zero-superblock --force /dev/sd{b,c,d,e,f}
+      mdadm: Unrecognised md component device - /dev/sdb
+      mdadm: Unrecognised md component device - /dev/sdc
+      mdadm: Unrecognised md component device - /dev/sdd
+      mdadm: Unrecognised md component device - /dev/sde
+      mdadm: Unrecognised md component device - /dev/sdf
+ *сообщение ошибкой не является, просто уведомление, что диски ранее не использовались для RAID*
+
+удаляем метаданные с дисков  
+
+    [root@localhost ~]#wipefs --all --force /dev/sd{b,c,d,e,f}
+
+создаём RAID5  
+
+    [root@localhost ~]#mdadm --create --verbose /dev/md0 -l 5 -n 5 /dev/sd{b,c,d,e,f}
+      mdadm: layout defaults to left-symmetric
+      mdadm: layout defaults to left-symmetric
+      mdadm: chunk size defaults to 512K
+      mdadm: size set to 1046528K
+      mdadm: Defaulting to version 1.2 metadata
+      mdadm: array /dev/md0 started.
+
+проверяем состояние RAID  
+
+    [root@localhost ~]#cat /proc/mdstat
 Personalities : [raid6] [raid5] [raid4] 
 md0 : active raid5 sdf[5] sde[3] sdd[2] sdc[1] sdb[0]
       4186112 blocks super 1.2 level 5, 512k chunk, algorithm 2 [5/5] [UUUUU]
       
 unused devices: <none>
 
-# "выводим из строя" один из дисков:
-~mdadm /dev/md0 --fail /dev/sdc
+- "выводим из строя" один из дисков:
+[root@localhost ~]#mdadm /dev/md0 --fail /dev/sdc
 mdadm: set /dev/sdc faulty in /dev/md0
 
-# смотрим статус RAID
-~cat /proc/mdstat
+- смотрим статус RAID
+[root@localhost ~]#cat /proc/mdstat
 Personalities : [raid6] [raid5] [raid4] 
 md0 : active raid5 sdf[5] sde[3] sdd[2] sdc[1](F) sdb[0]
       4186112 blocks super 1.2 level 5, 512k chunk, algorithm 2 [5/4] [U_UUU]
       
 unused devices: <none>
-# диск №2, sdc, показан как (F)
+- диск №2, sdc, показан как (F)
 
 # "Заменим" "неисправный" диск 
 ~mdadm /dev/md0 --remove /dev/sdc
