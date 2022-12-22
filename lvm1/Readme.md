@@ -212,10 +212,67 @@
 
 
     [root@lvm boot]# mount /dev/vg_var/lv_var /mnt/
-            
-   
-                
+    [root@lvm boot]# rsync -avHPSAX /var/ /mnt/
+        sending incremental file list
+        ./
+        .updated
+                    163 100%    0.00kB/s    0:00:00 (xfr#1, ir-chk=1026/1028)
 
+        sent 130,352 bytes  received 575 bytes  261,854.00 bytes/sec
+        total size is 218,803,538  speedup is 1,671.19
+
+Отмонтируем старый /var и монтируем новый 
+
+    [root@lvm boot]# umount /mnt
+    [root@lvm boot]# mount /dev/vg_var/lv_var /var
+    
+Вносим изменения в fstab для автоматического монтирования нового раздела
+
+    [root@lvm boot]# echo "`blkid | grep var: | awk '{print $2}'` /var ext4 defaults 0 0" >> /etc/fstab
+    
+Перезагружаемся, смотрим, что натворили:
+
+    [root@lvm ~]# lsblk
+        NAME                     MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+        sda                        8:0    0   40G  0 disk 
+        ├─sda1                     8:1    0    1M  0 part 
+        ├─sda2                     8:2    0    1G  0 part /boot
+        └─sda3                     8:3    0   39G  0 part 
+          ├─VolGroup00-LogVol00  253:0    0    8G  0 lvm  /
+          └─VolGroup00-LogVol01  253:1    0  1.5G  0 lvm  [SWAP]
+        sdb                        8:16   0   10G  0 disk 
+        └─vg_root-lv_root        253:2    0   10G  0 lvm  
+        sdc                        8:32   0    2G  0 disk 
+        ├─vg_var-lv_var_rmeta_0  253:3    0    4M  0 lvm  
+        │ └─vg_var-lv_var        253:7    0  952M  0 lvm  /var
+        └─vg_var-lv_var_rimage_0 253:4    0  952M  0 lvm  
+          └─vg_var-lv_var        253:7    0  952M  0 lvm  /var
+        sdd                        8:48   0    1G  0 disk 
+        ├─vg_var-lv_var_rmeta_1  253:5    0    4M  0 lvm  
+        │ └─vg_var-lv_var        253:7    0  952M  0 lvm  /var
+        └─vg_var-lv_var_rimage_1 253:6    0  952M  0 lvm  
+          └─vg_var-lv_var        253:7    0  952M  0 lvm  /var
+        sde                        8:64   0    1G  0 disk 
+        
+Удаляем временные разделы
+
+    [root@lvm ~]# lvremove /dev/vg_root/lv_root 
+        Do you really want to remove active logical volume vg_root/lv_root? [y/n]: y
+          Logical volume "lv_root" successfully removed
+
+    [root@lvm ~]# vgremove /dev/vg_root
+        Volume group "vg_root" successfully removed
+        
+    [root@lvm ~]# pvremove /dev/sdb
+        Labels on physical volume "/dev/sdb" successfully wiped.
+
+По той же схеме выделяем том под /home
+        
+    [root@lvm ~]# lvcreate -n LogVol_Home -L 2G /dev/VolGroup00
+          Logical volume "LogVol_Home" created.
+          
+         
+      
     
     
 
