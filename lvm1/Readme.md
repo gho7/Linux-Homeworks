@@ -58,7 +58,7 @@
     
 С помощью xfsdump/xfsrestore копируем данные с / в /mnt: 
     
-    [root@lvm ~]# [root@lvm ~]# xfsdump -J - /dev/VolGroup00/LogVol00 | xfsrestore -J - /mnt
+    [root@lvm ~]# xfsdump -J - /dev/VolGroup00/LogVol00 | xfsrestore -J - /mnt
       ...
       xfsdump: dump complete: 15 seconds elapsed
       xfsdump: Dump Status: SUCCESS
@@ -270,13 +270,90 @@
         
     [root@lvm ~]# lvcreate -n LogVol_Home -L 2G /dev/VolGroup00
           Logical volume "LogVol_Home" created.
-          
+    
+    [root@lvm ~]# mkfs.xfs /dev/VolGroup00/LogVol_Home 
+        meta-data=/dev/VolGroup00/LogVol_Home isize=512    agcount=4, agsize=131072 blks
+                 =                       sectsz=512   attr=2, projid32bit=1
+                 =                       crc=1        finobt=0, sparse=0
+        data     =                       bsize=4096   blocks=524288, imaxpct=25
+                 =                       sunit=0      swidth=0 blks
+        naming   =version 2              bsize=4096   ascii-ci=0 ftype=1
+        log      =internal log           bsize=4096   blocks=2560, version=2
+                 =                       sectsz=512   sunit=0 blks, lazy-count=1
+        realtime =none                   extsz=4096   blocks=0, rtextents=0
+   
          
-      
-    
-    
 
-      
+    [root@lvm ~]# mount /dev/VolGroup00/LogVol_Home /mnt/
+    [root@lvm ~]# cp -aR /home/* /mnt/
+    [root@lvm ~]# rm -rf /home/*
+    [root@lvm ~]# umount /mnt
+    [root@lvm ~]# mount /dev/VolGroup00/LogVol_Home /home/
+    [root@lvm ~]# echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fstab
+    
+Снимаем снапшоты с /home
+========================
+    
+Создадим группу файлов 
+        
+    [root@lvm ~]# touch /home/file{1..20}
+    
+Создадим снапшот
+
+    [root@lvm ~]# lvcreate -L 100MB -s -n home_snap /dev/VolGroup00/LogVol_Home
+          Rounding up size to full physical extent 128.00 MiB
+          Logical volume "home_snap" created.
+          
+Затем удалим часть файлов
+
+    [root@lvm ~]# rm -f /home/file{1..10}
+    [root@lvm ~]# ll /home
+        total 0
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file11
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file12
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file13
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file14
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file15
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file16
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file17
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file18
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file19
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file20
+        drwx------. 3 vagrant vagrant 74 May 12  2018 vagrant
+
+    
+И восстановим их со снапшота
+
+     [root@lvm ~]# umount /home
+     [root@lvm ~]# lvconvert --merge /dev/VolGroup00/home_snap 
+          Merging of volume VolGroup00/home_snap started.
+          VolGroup00/LogVol_Home: Merged: 100.00%
+     [root@lvm ~]# mount /home
+     [root@lvm ~]# ll /home/
+        total 0
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file1
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file10
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file11
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file12
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file13
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file14
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file15
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file16
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file17
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file18
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file19
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file2
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file20
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file3
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file4
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file5
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file6
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file7
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file8
+        -rw-r--r--. 1 root    root     0 Dec 22 13:04 file9
+        drwx------. 3 vagrant vagrant 74 May 12  2018 vagrant
+
+Таким образом, убеждаемся, что задача по восстановлению данных выполнена.
 
      
   
