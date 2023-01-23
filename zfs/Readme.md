@@ -1,10 +1,12 @@
+# Домашняя работа ZFS
+
 Поднимаем виртуальную машину, авторизуемся, переходим в root:
 
 	vagrant up
 	vagrant ssh
 	sudo -i
 
--=Определение алгоритма с наилучшим сжатием=-
+## Определение алгоритма с наилучшим сжатием
 
 Смотрим список дисков, имеющихся в виртуальной машине:
 
@@ -99,6 +101,7 @@
 	[root@localhost ~]# zfs set compression=zle pool4
 
 Проверяем:
+
 	[root@localhost ~]# zfs get compression
 		NAME   PROPERTY     VALUE     SOURCE
 		pool1  compression  lzjb      local
@@ -109,6 +112,7 @@
 Скачаем в пулы тестовый файл:
 
 	[root@localhost ~]# for i in {1..4}; do wget -P /pool$i https://gutenberg.org/cache/epub/2600/pg2600.converter.log; done
+	
 		--2023-01-23 07:41:29--  https://gutenberg.org/cache/epub/2600/pg2600.converter.log
 		Resolving gutenberg.org (gutenberg.org)... 152.19.134.47, 2610:28:3090:3000:0:bad:cafe:47
 		Connecting to gutenberg.org (gutenberg.org)|152.19.134.47|:443... connected.
@@ -129,7 +133,8 @@
 		100%[=======================================================>] 40,894,017   399KB/s   in 84s    
 		2023-01-23 07:47:28 (475 KB/s) - '/pool4/pg2600.converter.log' saved [40894017/40894017]
 
-Проверяем наличие файла:
+Проверяем наличие файла:  
+
 	[root@localhost ~]# ll /pool*
 		/pool1:
 		total 22037
@@ -147,15 +152,16 @@
 		total 39963
 		-rw-r--r--. 1 root root 40894017 Jan  2 09:19 pg2600.converter.log
 
-Смотрим, сколько места занимает одинаковый файл в системах с разным уровнем сжатия, проверяем compress ratio:
-	[root@localhost ~]# zfs list
+Смотрим, сколько места занимает одинаковый файл в системах с разным уровнем сжатия, проверяем compress ratio:  
+
+	[root@localhost ~]# zfs list  
 		NAME    USED  AVAIL     REFER  MOUNTPOINT
 		pool1  21.6M   330M     21.5M  /pool1
 		pool2  17.7M   334M     17.6M  /pool2
 		pool3  10.8M   341M     10.7M  /pool3
 		pool4  39.1M   313M     39.0M  /pool4
 		
-	[root@localhost ~]# zfs get compressratio
+	[root@localhost ~]# zfs get compressratio  
 		NAME   PROPERTY       VALUE  SOURCE
 		pool1  compressratio  1.81x  -
 		pool2  compressratio  2.22x  -
@@ -164,11 +170,12 @@
 
 На основании полученных данных можем сделать вывод, что набиолее эффективным алгоритмом сжатия является алгоритм gzip-9 (pool3)
 
--=Определение настроек пула=-
+## Определение настроек пула
 
 Скачиваем в домашний каталог тестовый архив и разархивируем:
 
-	[root@localhost ~]# wget -O archive.tar.gz --no-check-certificate 'https://drive.google.com/u/0/uc?id=1KRBNW33QWqbvbVHa3hLJivOAt60yukkg&export=download'
+	[root@localhost ~]# wget -O archive.tar.gz --no-check-certificate 'https://drive.google.com/u/0/uc?id=1KRBNW33QWqbvbVHa3hLJivOAt60yukkg&export=download'  
+	
 		--2023-01-23 08:25:44--  https://drive.google.com/u/0/uc?id=1KRBNW33QWqbvbVHa3hLJivOAt60yukkg&export=download
 		Resolving drive.google.com (drive.google.com)... 142.251.39.14, 2a00:1450:400d:80e::200e
 		Connecting to drive.google.com (drive.google.com)|142.251.39.14|:443... connected.
@@ -225,7 +232,8 @@
 		errors: No known data errors
 	...
 
-Запрашиваем все параметры импортированного пула:
+Запрашиваем все параметры импортированного пула:  
+
 	[root@localhost ~]# zfs get all otus
 		NAME  PROPERTY              VALUE                  SOURCE
 		otus  type                  filesystem             -
@@ -302,34 +310,41 @@
 
 Или уточняем интересующие нас параметры:
 
-свободное место
+свободное место 
+
 	[root@localhost ~]# zfs get available otus
 		NAME  PROPERTY   VALUE  SOURCE
 		otus  available  350M   -
-разрешение на запись
+разрешение на запись  
+
 	[root@localhost ~]# zfs get readonly otus
 		NAME  PROPERTY  VALUE   SOURCE
 		otus  readonly  off     default
 
-размер блока
+размер блока  
+
 	[root@localhost ~]# zfs get recordsize otus
 		NAME  PROPERTY    VALUE    SOURCE
 		otus  recordsize  128K     local
 
-тип сжатия (если включен)
+тип сжатия (если включен)  
+
 	[root@localhost ~]# zfs get compression otus
 		NAME  PROPERTY     VALUE     SOURCE
 		otus  compression  zle       local
 
-тип контрольной суммы
+тип контрольной суммы  
+
 	[root@localhost ~]# zfs get checksum otus
 		NAME  PROPERTY  VALUE      SOURCE
 		otus  checksum  sha256     local
 
--=Работа со снапшотами=-
+## Работа со снапшотами
 
-Скачиваем тестовый файл:
+Скачиваем тестовый файл:  
+
 	[root@localhost ~]# wget -O otus_task2.file --no-check-certificate 'https://drive.google.com/u/0/uc?id=1gH8gCL9y7Nd5Ti3IRmplZPF1XjzxeRAG&export=download'
+	
 		--2023-01-23 09:22:06--  https://drive.google.com/u/0/uc?id=1gH8gCL9y7Nd5Ti3IRmplZPF1XjzxeRAG&export=download
 		Resolving drive.google.com (drive.google.com)... 142.251.208.110, 2a00:1450:400d:80c::200e
 		Connecting to drive.google.com (drive.google.com)|142.251.208.110|:443... connected.
@@ -351,12 +366,15 @@
 
 		2023-01-23 09:22:16 (1.58 MB/s) - 'otus_task2.file' saved [5432736/5432736]
 	
-Восстанавливаем том из снапшота:
+Восстанавливаем том из снапшота:  
+
 	[root@localhost ~]# zfs receive otus/test@today < otus_task2.file 
 
-Смотрим, что восстановилось, ищем secret_file и его содержимое:
-	[root@localhost ~]# cd /otus/test/
-	[root@localhost test]# ll
+Смотрим, что восстановилось, ищем secret_file и его содержимое:  
+
+	[root@localhost ~]# cd /otus/test/  
+	
+	[root@localhost test]# ll  
 		total 2590
 		-rw-r--r--. 1 root    root          0 May 15  2020 10M.file
 		-rw-r--r--. 1 root    root     309987 May 15  2020 Limbo.txt
